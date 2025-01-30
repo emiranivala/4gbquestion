@@ -325,16 +325,71 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                 thumb_path = await screenshot(file, duration, chatx)
                 upload_method = await fetch_upload_method(sender)
                 try:
+                    if file_extension in video_extensions:
+                        if upload_method == "Pyrogram":
+                            devgaganin = await app.send_video(
+                                chat_id=target_chat_id,
+                                video=file,
+                                caption=caption,
+                                supports_streaming=True,
+                                height=height,
+                                width=width,
+                                duration=duration,
+                                thumb=thumb_path,
+                                progress=progress_bar,
+                                progress_args=(
+                                    "╭─────────────────────╮\n│      **__Pyro Uploader__**\n├─────────────────────",
+                                    edit,
+                                    time.time()
+                                )
+                            )
+                            await devgaganin.copy(LOG_GROUP)
+ 
+                        elif upload_method == "Telethon":
+                            await edit.delete()
+                            progress_message = await gf.send_message(sender, "**__Starting Upload__**")
+                            uploaded = await fast_upload(
+                                    gf, 
+                                    file, 
+                                    reply=progress_message,                 
+                                    name=None,                
+                                    progress_bar_function=lambda done, total: progress_callback(done, total, sender)                
+                            )
+                            await gf.send_file(
+                                target_chat_id,
+                                uploaded,
+                                caption=caption,
+                                attributes=[
+                                    DocumentAttributeVideo(
+                                        duration=metadata['duration'],
+                                        w=metadata['width'],
+                                        h=metadata['height'],
+                                        supports_streaming=True
+                                    )
+                                ],
+                                thumb=thumb_path
+                            )
+                            await gf.send_file(
+                                LOG_GROUP,
+                                uploaded,
+                                caption=caption,
+                                attributes=[
+                                    DocumentAttributeVideo(
+                                        duration=metadata['duration'],
+                                        w=metadata['width'],
+                                        h=metadata['height'],
+                                        supports_streaming=True
+                                    )
+                                ],
+                            thumb=thumb_path
+                            )
+                 else:
                     if upload_method == "Pyrogram":
-                        devgaganin = await app.send_video(
+                        devgaganin = await app.send_document(
                             chat_id=target_chat_id,
-                            video=file,
+                            document=file,
                             caption=caption,
-                            supports_streaming=True,
-                            height=height,
-                            width=width,
                             thumb=thumb_path,
-                            duration=duration,
                             progress=progress_bar,
                             progress_args=(
                                 "╭─────────────────────╮\n│      **__Pyro Uploader__**\n├─────────────────────",
@@ -343,48 +398,30 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                             )
                         )
                         await devgaganin.copy(LOG_GROUP)
-                        
+ 
                     elif upload_method == "Telethon":
                         await edit.delete()
-                        progress_message = await gf.send_message(sender, "__**Uploading ...**__")
+                        progress_message = await gf.send_message(sender, "Uploading ...")
                         uploaded = await fast_upload(
-                                gf, file, 
-                                reply=progress_message,                 
-                                name=None,                
-                                progress_bar_function=lambda done, total: progress_callback(done, total, sender)                
-                        )
+                            gf, 
+                            file, 
+                            reply=progress_message,                 
+                            name=None,                
+                             progress_bar_function=lambda done, total: progress_callback(done, total, sender)                
+                         )                
+ 
                         await gf.send_file(
                             target_chat_id,
                             uploaded,
                             caption=caption,
-                            attributes=[
-                                DocumentAttributeVideo(
-                                    duration=duration,
-                                    w=width,
-                                    h=height,
-                                    supports_streaming=True
-                                )
-                            ],
-                            # force_document=False,
-                            # progress_callback=lambda current, total: progress_callback(current, total, progress_message),
                             thumb=thumb_path
                         )
                         await gf.send_file(
                             LOG_GROUP,
                             uploaded,
                             caption=caption,
-                            attributes=[
-                                DocumentAttributeVideo(
-                                    duration=duration,
-                                    w=width,
-                                    h=height,
-                                    supports_streaming=True
-                                )
-                            ],
-                            # force_document=False,
-                            # progress_callback=lambda current, total: progress_callback(current, total, progress_message),
                             thumb=thumb_path
-                        )
+                        )                
                         # await progress_message.delete()
                 except:
                     try:
