@@ -257,7 +257,7 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                 duration = metadata['duration']
                 thumb_path = await screenshot(file, duration, chatx)
 
-                if duration <= 300:
+                if duration <= 3000000:
                     upload_method = await fetch_upload_method(sender)
                     if upload_method == "Pyrogram":
                         devgaganin = await app.send_video(chat_id=target_chat_id, video=file, caption=caption, height=height, width=width, duration=duration, thumb=thumb_path, progress=progress_bar, progress_args=("╭─────────────────────╮\n│      **__Pyro Uploader__**\n├─────────────────────", edit, time.time())) 
