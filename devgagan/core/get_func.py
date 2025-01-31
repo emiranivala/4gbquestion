@@ -153,10 +153,10 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                 if ggn_ext.isalpha() and len(ggn_ext) <= 9:
                     if ggn_ext.lower() in VIDEO_EXTENSIONS:
                         original_file_name = str(file)[:last_dot_index]
-                        file_extension = 'mp4'                 
+                        file_extension = ggn_ext.lower()                 
                     else:
                         original_file_name = str(file)[:last_dot_index]
-                        file_extension = ggn_ext
+                        file_extension = ggn_ext.lower()
                 else:
                     original_file_name = str(file)
                     file_extension = 'mp4'
