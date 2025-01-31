@@ -383,46 +383,46 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                                 ],
                             thumb=thumb_path
                             )
-                 else:
-                    if upload_method == "Pyrogram":
-                        devgaganin = await app.send_document(
-                            chat_id=target_chat_id,
-                            document=file,
-                            caption=caption,
-                            thumb=thumb_path,
-                            progress=progress_bar,
-                            progress_args=(
-                                "╭─────────────────────╮\n│      **__Pyro Uploader__**\n├─────────────────────",
-                                edit,
-                                time.time()
-                            )
-                        )
-                        await devgaganin.copy(LOG_GROUP)
+                        else:
+                            if upload_method == "Pyrogram":
+                                devgaganin = await app.send_document(
+                                    chat_id=target_chat_id,
+                                    document=file,
+                                    caption=caption,
+                                    thumb=thumb_path,
+                                    progress=progress_bar,
+                                    progress_args=(
+                                        "╭─────────────────────╮\n│      **__Pyro Uploader__**\n├─────────────────────",
+                                        edit,
+                                        time.time()
+                                    )
+                                )
+                                await devgaganin.copy(LOG_GROUP)
  
-                    elif upload_method == "Telethon":
-                        await edit.delete()
-                        progress_message = await gf.send_message(sender, "Uploading ...")
-                        uploaded = await fast_upload(
-                            gf, 
-                            file, 
-                            reply=progress_message,                 
-                            name=None,                
-                             progress_bar_function=lambda done, total: progress_callback(done, total, sender)                
-                         )                
+                            elif upload_method == "Telethon":
+                                await edit.delete()
+                                progress_message = await gf.send_message(sender, "Uploading ...")
+                                uploaded = await fast_upload(
+                                    gf, 
+                                    file, 
+                                    reply=progress_message,                 
+                                    name=None,                
+                                    progress_bar_function=lambda done, total: progress_callback(done, total, sender)                
+                                 )                
  
-                        await gf.send_file(
-                            target_chat_id,
-                            uploaded,
-                            caption=caption,
-                            thumb=thumb_path
-                        )
-                        await gf.send_file(
-                            LOG_GROUP,
-                            uploaded,
-                            caption=caption,
-                            thumb=thumb_path
-                        )                
-                        # await progress_message.delete()
+                                await gf.send_file(
+                                    target_chat_id,
+                                    uploaded,
+                                    caption=caption,
+                                    thumb=thumb_path
+                                )
+                                await gf.send_file(
+                                    LOG_GROUP,
+                                    uploaded,
+                                    caption=caption,
+                                    thumb=thumb_path
+                            )                
+                            # await progress_message.delete()
                 except:
                     try:
                         await app.edit_message_text(sender, edit_id, "The bot is not an admin in the specified chat...")
