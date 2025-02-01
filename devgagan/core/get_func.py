@@ -397,16 +397,18 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
         if progress_message:
             await progress_message.delete()
 
-    except (ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid, PeerIdInvalid):
-        await app.edit_message_text(sender, edit_id, "Have you joined the channel?")
-        return
-    except Exception as e:
-        print(f"Errrrror {e}")
-        try:
-            await edit.delete()
-        except:
-            pass
-        await app.edit_message_text(sender, edit_id, f'Failed to save: `{msg_link}`\n\nError: {str(e)}')
+    except (ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid, PeerIdInvalid) as e:
+    print(f"Channel error detected: {e}")  # Debugging log
+    if isinstance(e, ChannelBanned):
+        await app.edit_message_text(sender, edit_id, "The bot is banned in this channel.")
+    elif isinstance(e, ChannelPrivate):
+        await app.edit_message_text(sender, edit_id, "This channel is private. Please add the bot.")
+    elif isinstance(e, (ChannelInvalid, ChatInvalid, PeerIdInvalid)):
+        await app.edit_message_text(sender, edit_id, "Invalid channel/chat ID. Please verify.")
+    else:
+        await app.edit_message_text(sender, edit_id, f"Error: {str(e)}. Have you joined the channel?")
+    return
+
     finally:
         if file and os.path.exists(file):
             os.remove(file)
