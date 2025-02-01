@@ -1,3 +1,34 @@
+
+                        reply=progress_message,
+                        name=None,
+                        progress_bar_function=lambda done, total: progress_callback(done, total, sender)
+                    )
+                    await gf.send_file(
+                        target_chat_id,
+                        uploaded,
+                        caption=part_caption,
+                        thumb=thumbnail(sender)
+                    )
+                    await gf.send_file(
+                        LOG_GROUP,
+                        uploaded,
+                        caption=part_caption,
+                        thumb=thumbnail(sender)
+                    )
+                    await progress_message.delete()
+                os.remove(part)
+            os.remove(file)
+            await edit.delete()
+            return
+        # -------------------------------------------------------------------------
+
+        # For videos, we want to rename/apply watermarking. For others (documents, photos, etc.) we preserve the original.
+        if msg.video:
+            progress_bar_function=lambda done, total: progress_callback(done, total, sender)
+                        )
+                        await gf.send_file(
+                            target_chat_id,
+
 import asyncio
 import time
 import os
@@ -7,6 +38,7 @@ import requests
 import pymongo
 import random
 import string
+import math
 from io import BytesIO
 from telethon.tl.types import DocumentAttributeVideo
 from telethon.tl.custom import Button
@@ -23,7 +55,6 @@ from devgagan.core.mongo.db import set_session, remove_session, get_data
 from devgagan.modules.shrink import is_user_verified
 from config import MONGO_DB as MONGODB_CONNECTION_STRING, LOG_GROUP, OWNER_ID, STRING
 from SpyLib import fast_upload
-
 # ------------------------- Mongo Setup -------------------------
 DB_NAME = "smart_users"
 COLLECTION_NAME = "super_user"
@@ -36,7 +67,6 @@ if STRING:
 else:
     pro = None
     print("STRING is not available. 'app' is set to None.")
-
 # ------------------------- Helper Functions -------------------------
 def thumbnail(sender):
     return f'{sender}.jpg' if os.path.exists(f'{sender}.jpg') else None
@@ -45,27 +75,6 @@ async def fetch_upload_method(user_id):
     """Fetch the user's preferred upload method."""
     user_data = collection.find_one({"user_id": user_id})
     return user_data.get("upload_method", "Pyrogram") if user_data else "Pyrogram"
-
-# --- File Splitting Function (Creates parts in the same folder as the original file) ---
-def split_file(file_path, chunk_size):
-    """
-    Splits the file at file_path into chunks of up to chunk_size bytes.
-    Returns a list of the generated part filenames.
-    """
-    parts = []
-    part_num = 1
-    with open(file_path, 'rb') as f:
-        while True:
-            chunk = f.read(chunk_size)
-            if not chunk:
-                break
-            part_filename = f"{file_path}.part{part_num}"
-            with open(part_filename, 'wb') as pf:
-                pf.write(chunk)
-            parts.append(part_filename)
-            part_num += 1
-    return parts
-
 # ------------------------- Main Function -------------------------
 async def get_msg(userbot, sender, edit_id, msg_link, i, message):
     edit = ""
@@ -145,80 +154,98 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
             await edit.delete(2)
             return
 
-        # Determine if we have media to download
-        if msg.document or msg.photo or msg.video or msg.audio or msg.voice:
-            file_size = None
-            if msg.document:
-                file_size = msg.document.file_size
-            elif msg.photo:
-                file_size = msg.photo.file_size
-            elif msg.video:
-                file_size = msg.video.file_size
-            elif msg.audio:
-                file_size = msg.audio.file_size
-            elif msg.voice:
-                file_size = msg.voice.file_size
+        # Determine if we have media to download and get its size
+        file_size = None
+        if msg.document:
+            file_size = msg.document.file_size
+        elif msg.photo:
+            file_size = msg.photo.file_size
+        elif msg.video:
+            file_size = msg.video.file_size
+        elif msg.audio:
+            file_size = msg.audio.file_size
+        elif msg.voice:
+            file_size = msg.voice.file_size
 
-            if file_size and file_size > size_limit:
-                freecheck = await chk_user(message, sender)
-                verified = await is_user_verified(sender)
-                if freecheck == 1 and not verified:
-                    await app.edit_message_text(sender, edit_id, 
-                        "**__❌ File size is greater than 2 GB, purchase premium to proceed or use /token to get 3 hour access for free__")
-                    return
+        if file_size and file_size > size_limit:
+            freecheck = await chk_user(message, sender)
+            verified = await is_user_verified(sender)
+            if freecheck == 1 and not verified:
+                await app.edit_message_text(sender, edit_id, 
+                    "**__❌ File size is greater than 2 GB, purchase premium to proceed or use /token to get 3 hour access for free__")
+                return
 
         edit = await app.edit_message_text(sender, edit_id, "Trying to Download...")
-        file = await userbot.download_media(msg,
-                                            progress=progress_bar,
-                                            progress_args=("Downloading...", edit, time.time()))
-        
-        # ------------- File Splitting Feature: No extra folder is used -------------
-        if os.path.getsize(file) > size_limit:
-            parts = split_file(file, size_limit)
-            target_chat_id = user_chat_ids.get(chatx, chatx)
-            upload_method = await fetch_upload_method(sender)
-            for idx, part in enumerate(parts, start=1):
-                part_caption = f"{caption}\n\nPart {idx}"
+        # Get the preferred upload method before starting chunk download/upload
+        upload_method = await fetch_upload_method(sender)
+
+        # ------------------ If file size > 2GB, download & upload in chunks ------------------
+        if file_size and file_size > size_limit:
+            await edit.edit("File size greater than 2GB detected, starting chunked download and upload...")
+            chunk_size = size_limit  # 2GB per chunk
+            total_chunks = math.ceil(file_size / chunk_size)
+            # For download_file we need the location; in most cases, msg.media works fine.
+            media_location = msg.media
+            for chunk_index in range(total_chunks):
+                chunk_filename = f"temp_{os.path.basename(msg_link)}_part{chunk_index+1}"
+                # Download current chunk using offset and limit.
+                # (Note: download_file supports offset and limit if your client is Telethon.)
+                await userbot.download_file(
+                    media_location,
+                    file=chunk_filename,
+                    offset=chunk_index * chunk_size,
+                    limit=chunk_size,
+                    progress_callback=progress_bar,
+                    progress_args=(f"Downloading chunk {chunk_index+1}/{total_chunks}...", edit, time.time())
+                )
+                chunk_caption = f"{caption}\n\nChunk {chunk_index+1}/{total_chunks}"
                 if upload_method == "Pyrogram":
-                    devgaganin = await app.send_document(
-                        chat_id=target_chat_id,
-                        document=part,
-                        caption=part_caption,
+                    sent_msg = await app.send_document(
+                        chat_id=user_chat_ids.get(chatx, chatx),
+                        document=chunk_filename,
+                        caption=chunk_caption,
                         thumb=thumbnail(sender),
                         progress=progress_bar,
-                        progress_args=("Uploading part...", edit, time.time())
+                        progress_args=(f"Uploading chunk {chunk_index+1}/{total_chunks}...", edit, time.time())
                     )
-                    await devgaganin.copy(LOG_GROUP)
+                    await sent_msg.copy(LOG_GROUP)
                 elif upload_method == "Telethon":
                     await edit.delete()
-                    progress_message = await gf.send_message(sender, f"Uploading Part {idx} ...")
+                    progress_message = await gf.send_message(sender, f"Uploading chunk {chunk_index+1}/{total_chunks}...")
                     uploaded = await fast_upload(
-                        gf, part,
+                        gf, chunk_filename,
                         reply=progress_message,
                         name=None,
                         progress_bar_function=lambda done, total: progress_callback(done, total, sender)
                     )
                     await gf.send_file(
-                        target_chat_id,
+                        user_chat_ids.get(chatx, chatx),
                         uploaded,
-                        caption=part_caption,
+                        caption=chunk_caption,
                         thumb=thumbnail(sender)
                     )
                     await gf.send_file(
                         LOG_GROUP,
                         uploaded,
-                        caption=part_caption,
+                        caption=chunk_caption,
                         thumb=thumbnail(sender)
                     )
                     await progress_message.delete()
-                os.remove(part)
-            os.remove(file)
+                os.remove(chunk_filename)
             await edit.delete()
             return
-        # -------------------------------------------------------------------------
+        # ------------------------------------------------------------------------------------
 
-        # For videos, we want to rename/apply watermarking. For others (documents, photos, etc.) we preserve the original.
+        # For files smaller than or equal to 2GB, use the normal download method.
+        file = await userbot.download_media(
+            msg,
+            progress=progress_bar,
+            progress_args=("Downloading...", edit, time.time())
+        )
+        
+        # For videos, we want to rename/apply watermarking. For other media, preserve the original.
         if msg.video:
+            # Rename the video and apply watermark if needed.
             last_dot_index = str(file).rfind('.')
             if last_dot_index != -1:
                 original_file_name = str(file)[:last_dot_index]
@@ -240,13 +267,16 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
             duration = metadata['duration']
             thumb_path = await screenshot(file, duration, chatx)
         else:
+            # For non-video files, you can optionally set a thumbnail if available.
             thumb_path = thumbnail(sender)
 
+        # Determine the target chat ID
         target_chat_id = user_chat_ids.get(chatx, chatx)
-        upload_method = await fetch_upload_method(sender)
 
         # ---------------------- Upload Based on Original Media Type ----------------------
+        # Case 1: Video message (sent as a video)
         if msg.video:
+            # If the video file size is huge and requires the "pro" client:
             if os.path.getsize(file) >= (2 * 1024 * 1024 * 1024):
                 if pro is None:
                     await edit.edit('**__ ❌ 4GB trigger not found__**')
@@ -337,6 +367,7 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                     )
                     await progress_message.delete()
 
+        # Case 2: Photo
         elif msg.photo:
             await edit.edit("Uploading photo...")
             devgaganin = await app.send_photo(
@@ -351,15 +382,19 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                     await devgaganin.pin()
             await devgaganin.copy(LOG_GROUP)
 
+        # Case 3: Voice
         elif msg.voice:
             result = await app.send_voice(target_chat_id, file)
             await result.copy(LOG_GROUP)
 
+        # Case 4: Audio
         elif msg.audio:
             result = await app.send_audio(target_chat_id, file, caption=caption)
             await result.copy(LOG_GROUP)
 
+        # Case 5: Document (generic file)
         elif msg.document:
+            # Even if the extension matches a video type, we treat it as a document.
             if upload_method == "Pyrogram":
                 devgaganin = await app.send_document(
                     chat_id=target_chat_id,
@@ -392,6 +427,8 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                     thumb=thumb_path
                 )
                 await progress_message.delete()
+
+        # Fallback: if none of the above media types match, send as a document.
         else:
             if upload_method == "Pyrogram":
                 devgaganin = await app.send_document(
@@ -437,7 +474,6 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
         print(f"Errrrror {e}")
         await edit.delete()
         # await app.edit_message_text(sender, edit_id, f'Failed to save: `{msg_link}`\n\nError: {str(e)}')       
-        
     else:
         edit = await app.edit_message_text(sender, edit_id, "Cloning...")
         try:
