@@ -1,8 +1,5 @@
 import asyncio
 
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-loop.run_until_complete(devggn_boot())
 
 import time
 import os
@@ -402,45 +399,23 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
         if progress_message:
             await progress_message.delete()
 
-    try:
-      # ✅ Your main processing logic goes here
-      msg = await userbot.get_messages(chat, msg_id)
-      if msg is None:
-          raise ChatInvalid("Message not found or invalid.")
-      # ✅ Process different message types (text, media, etc.)
-      if msg.text:
-          await app.send_message(sender, msg.text)
-      elif msg.photo:
-          await app.send_photo(sender, msg.photo.file_id, caption=msg.caption)
-      elif msg.document:
-          await app.send_document(sender, msg.document.file_id, caption=msg.caption)
-      elif msg.video:
-          await app.send_video(sender, msg.video.file_id, caption=msg.caption)
-      elif msg.audio:
-          await app.send_audio(sender, msg.audio.file_id, caption=msg.caption)
-      else:
-          await app.send_message(sender, "Unsupported message type.")
-  except (ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid, PeerIdInvalid) as e:
-      print(f"🔴 Channel error detected: {e}")  # Debugging log
-      await app.send_message(sender, f"DEBUG: {str(e)} (chat: {chat}, msg_id: {msg_id})")
+    except (ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid):
+            await app.edit_message_text(sender, edit_id, "Have you joined the channel?")
+            return
+        except Exception as e:
+            print(f"Errrrror {e}")
+            await edit.delete()
+            # await app.edit_message_text(sender, edit_id, f'Failed to save: `{msg_link}`\n\nError: {str(e)}')       
+        
+    else:
+        edit = await app.edit_message_text(sender, edit_id, "Cloning...")
+        try:
+            chat = msg_link.split("/")[-2]
+            await copy_message_with_chat_id(app, sender, chat, msg_id) 
+            await edit.delete()
+        except Exception as e:
+            await app.edit_message_text(sender, edit_id, f'Failed to save: `{msg_link}`\n\nError: {str(e)}')
 
-
-      # ✅ DEBUG LOGGING: Send error details to chat for diagnosis
-      await app.send_message(sender, f"DEBUG: {str(e)}")
-
-      if isinstance(e, ChannelBanned):
-          await app.send_message(sender, "🚫 The bot is banned in this channel.")
-      elif isinstance(e, ChannelPrivate):
-          await app.send_message(sender, "🔒 This channel is private. Please add the bot.")
-      elif isinstance(e, (ChannelInvalid, ChatInvalid, PeerIdInvalid)):
-          await app.send_message(sender, "⚠️ Invalid channel/chat ID. Please verify.")
-      else:
-          await app.send_message(sender, f"❌ Unexpected Error: {str(e)}")  # Changed message to avoid false alerts
-  finally:
-      # ✅ Cleanup: Remove downloaded files to save space
-      if file and os.path.exists(file):
-          os.remove(file)
-          print(f"🗑️ Deleted temporary file: {file}")
 
 
 
