@@ -9,7 +9,9 @@ import random
 import string
 from io import BytesIO
 
-from telethon.tl.types import DocumentAttributeVideo, Button
+from telethon.tl.types import DocumentAttributeVideo
+from telethon.tl.custom import Button
+
 from telethon import events
 from pyrogram import Client, filters
 from pyrogram.errors import (ChannelBanned, ChannelInvalid, ChannelPrivate, 
