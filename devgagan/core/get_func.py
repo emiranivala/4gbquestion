@@ -397,21 +397,27 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
         if progress_message:
             await progress_message.delete()
 
+    try:
+    # Your main processing code goes here
+      some_code_here()
+
     except (ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid, PeerIdInvalid) as e:
-      print(f"Channel error detected: {e}")  # Debugging log
-    if isinstance(e, ChannelBanned):
-        await app.edit_message_text(sender, edit_id, "The bot is banned in this channel.")
-    elif isinstance(e, ChannelPrivate):
-        await app.edit_message_text(sender, edit_id, "This channel is private. Please add the bot.")
-    elif isinstance(e, (ChannelInvalid, ChatInvalid, PeerIdInvalid)):
-        await app.edit_message_text(sender, edit_id, "Invalid channel/chat ID. Please verify.")
-    else:
-        await app.edit_message_text(sender, edit_id, f"Error: {str(e)}. Have you joined the channel?")
-    return
+        print(f"Channel error detected: {e}")  # Debugging log
+    
+        if isinstance(e, ChannelBanned):
+            await app.edit_message_text(sender, edit_id, "The bot is banned in this channel.")
+        elif isinstance(e, ChannelPrivate):
+            await app.edit_message_text(sender, edit_id, "This channel is private. Please add the bot.")
+        elif isinstance(e, (ChannelInvalid, ChatInvalid, PeerIdInvalid)):
+            await app.edit_message_text(sender, edit_id, "Invalid channel/chat ID. Please verify.")
+        else:
+            await app.edit_message_text(sender, edit_id, f"Error: {str(e)}. Have you joined the channel?")
+        return  # Ensure function exits properly after handling errors
 
     finally:
         if file and os.path.exists(file):
-            os.remove(file)
+            os.remove(file)  # Cleanup code
+
 
 
 async def copy_message_with_chat_id(client, sender, chat_id, message_id):
