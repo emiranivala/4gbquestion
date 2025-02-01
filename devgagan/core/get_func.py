@@ -1,6 +1,4 @@
 import asyncio
-
-
 import time
 import os
 import re
@@ -10,17 +8,14 @@ import pymongo
 import random
 import string
 from io import BytesIO
-
 from telethon.tl.types import DocumentAttributeVideo
 from telethon.tl.custom import Button
-
 from telethon import events
 from pyrogram import Client, filters
 from pyrogram.errors import (ChannelBanned, ChannelInvalid, ChannelPrivate, 
                              ChatIdInvalid, ChatInvalid, PeerIdInvalid)
 from pyrogram.enums import MessageMediaType
 from pyrogram.types import Message
-
 from devgagan import app
 from devgagan import sex as gf
 from devgagan.core.func import progress_bar, video_metadata, screenshot, chk_user, progress_callback, prog_bar
@@ -28,25 +23,19 @@ from devgagan.core.mongo.db import set_session, remove_session, get_data
 from devgagan.modules.shrink import is_user_verified
 from config import MONGO_DB as MONGODB_CONNECTION_STRING, LOG_GROUP, OWNER_ID, STRING
 from SpyLib import fast_upload
-
 # ------------------------- Mongo Setup -------------------------
-
 DB_NAME = "smart_users"
 COLLECTION_NAME = "super_user"
-
 mongo_client = pymongo.MongoClient(MONGODB_CONNECTION_STRING)
 db = mongo_client[DB_NAME]
 collection = db[COLLECTION_NAME]
-
 if STRING:
     from devgagan import pro
     print("App imported from devgagan.")
 else:
     pro = None
     print("STRING is not available. 'app' is set to None.")
-
 # ------------------------- Helper Functions -------------------------
-
 def thumbnail(sender):
     return f'{sender}.jpg' if os.path.exists(f'{sender}.jpg') else None
 
@@ -54,21 +43,7 @@ async def fetch_upload_method(user_id):
     """Fetch the user's preferred upload method."""
     user_data = collection.find_one({"user_id": user_id})
     return user_data.get("upload_method", "Pyrogram") if user_data else "Pyrogram"
-
-# (Assume these helper functions are defined somewhere in your project)
-# def load_saved_channel_ids():
-#     ...
-# def get_user_caption_preference(user_id):
-#     ...
-# def load_replacement_words(user_id):
-#     ...
-# def load_delete_words(user_id):
-#     ...
-# def copy_message_with_chat_id(app, sender, chat, msg_id):
-#     ...
-
 # ------------------------- Main Function -------------------------
-
 async def get_msg(userbot, sender, edit_id, msg_link, i, message):
     edit = ""
     progress_message = None
@@ -89,7 +64,7 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                 chat = msg_link.split("/")[-2]
             if chat in saved_channel_ids:
                 await app.edit_message_text(message.chat.id, edit_id,
-                                            "Sorry! dude 😎 This channel is protected 🔐 by **__Team SPY__**")
+                                            "Sorry! dude 😎 This channel is protected 🔐 by **__Crushe__**")
                 return
 
         file = ""
@@ -415,13 +390,6 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
             await edit.delete()
         except Exception as e:
             await app.edit_message_text(sender, edit_id, f'Failed to save: `{msg_link}`\n\nError: {str(e)}')
-
-
-
-
-
-
-
 async def copy_message_with_chat_id(client, sender, chat_id, message_id):
     # Get the user's set chat ID, if available; otherwise, use the original sender ID
     target_chat_id = user_chat_ids.get(sender, sender)
@@ -475,7 +443,6 @@ async def copy_message_with_chat_id(client, sender, chat_id, message_id):
         error_message = f"Error occurred while sending message to chat ID {target_chat_id}: {str(e)}"
         await client.send_message(sender, error_message)
         await client.send_message(sender, f"Make Bot admin in your Channel - {target_chat_id} and restart the process after /cancel")
-
 
 
 # -------------- FFMPEG CODES ---------------
@@ -586,7 +553,7 @@ async def settings_command(event):
         [Button.inline("Session Login", b'addsession'), Button.inline("Logout", b'logout')],
         [Button.inline("Set Thumbnail", b'setthumb'), Button.inline("Remove Thumbnail", b'remthumb')],
         [Button.inline("Upload Method", b'uploadmethod')],
-        [Button.url("Report Errors", "https://t.me/team_spy_pro")]
+        [Button.url("Report Errors", "https://t.me/+XRO7InBcXXA2ODRk")]
     ]
     
     await gf.send_file(
@@ -651,7 +618,7 @@ async def callback_query_handler(event):
             [Button.inline(f"Pyrogram v2{pyrogram_check}", b'pyrogram')],
             [Button.inline(f"SpyLib v1 ⚡{telethon_check}", b'telethon')]
         ]
-        await event.edit("Choose your preferred upload method:\n\n__**Note:** **SpyLib ⚡**, built on Telethon(base), still in beta.__", buttons=buttons)
+        await event.edit("Choose your preferred upload method:\n\n__**Note:** **Crushe ⚡**, built on Telethon(base), still in beta.__", buttons=buttons)
 
     elif event.data == b'pyrogram':
         save_user_upload_method(user_id, "Pyrogram")
@@ -659,7 +626,7 @@ async def callback_query_handler(event):
 
     elif event.data == b'telethon':
         save_user_upload_method(user_id, "Telethon")
-        await event.edit("Upload method set to **SpyLib ⚡\n\nThanks for choosing this library as it will help me to analyze the error raise issues on github.** ✅")        
+        await event.edit("Upload method set to **crushe ⚡\n\nThanks for choosing this library as it will help me to analyze the error raise issues on github.** ✅")        
     
     elif event.data == b'reset':
         try:
@@ -878,7 +845,7 @@ def progress_callback(done, total, user_id):
         f"│ **__Speed:__** {speed_mbps:.2f} Mbps\n"
         f"│ **__ETA:__** {remaining_time_min:.2f} min\n"
         f"╰──────────────────╯\n\n"
-        f"**__Powered by Team SPY__**"
+        f"**__Powered by crushe__**"
     )
     
     # Update tracking variables for the user
