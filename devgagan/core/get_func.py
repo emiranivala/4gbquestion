@@ -402,7 +402,6 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
       msg = await userbot.get_messages(chat, msg_id)
       if msg is None:
           raise ChatInvalid("Message not found or invalid.")
-
       # ✅ Process different message types (text, media, etc.)
       if msg.text:
           await app.send_message(sender, msg.text)
@@ -416,10 +415,14 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
           await app.send_audio(sender, msg.audio.file_id, caption=msg.caption)
       else:
           await app.send_message(sender, "Unsupported message type.")
-
-    except (ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid, PeerIdInvalid) as e:
+  except (ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid, PeerIdInvalid) as e:
       print(f"🔴 Channel error detected: {e}")  # Debugging log
-    
+      await app.send_message(sender, f"DEBUG: {str(e)} (chat: {chat}, msg_id: {msg_id})")
+
+
+      # ✅ DEBUG LOGGING: Send error details to chat for diagnosis
+      await app.send_message(sender, f"DEBUG: {str(e)}")
+
       if isinstance(e, ChannelBanned):
           await app.send_message(sender, "🚫 The bot is banned in this channel.")
       elif isinstance(e, ChannelPrivate):
@@ -427,15 +430,14 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
       elif isinstance(e, (ChannelInvalid, ChatInvalid, PeerIdInvalid)):
           await app.send_message(sender, "⚠️ Invalid channel/chat ID. Please verify.")
       else:
-          await app.send_message(sender, f"❌ Error: {str(e)}. Have you joined the channel?")
-    
-      return  # ✅ Ensure function exits properly after handling errors
-
+          await app.send_message(sender, f"❌ Unexpected Error: {str(e)}")  # Changed message to avoid false alerts
   finally:
       # ✅ Cleanup: Remove downloaded files to save space
       if file and os.path.exists(file):
           os.remove(file)
           print(f"🗑️ Deleted temporary file: {file}")
+
+
 
 
 
