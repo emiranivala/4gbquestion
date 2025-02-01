@@ -398,7 +398,7 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
             await progress_message.delete()
 
     except (ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid, PeerIdInvalid) as e:
-    print(f"Channel error detected: {e}")  # Debugging log
+      print(f"Channel error detected: {e}")  # Debugging log
     if isinstance(e, ChannelBanned):
         await app.edit_message_text(sender, edit_id, "The bot is banned in this channel.")
     elif isinstance(e, ChannelPrivate):
