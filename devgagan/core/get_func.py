@@ -1,4 +1,9 @@
 import asyncio
+
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+loop.run_until_complete(devggn_boot())
+
 import time
 import os
 import re
