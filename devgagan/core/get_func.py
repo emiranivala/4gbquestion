@@ -398,25 +398,45 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
             await progress_message.delete()
 
     try:
-    # Your main processing code goes here
-      some_code_here()
+      # ✅ Your main processing logic goes here
+      msg = await userbot.get_messages(chat, msg_id)
+      if msg is None:
+          raise ChatInvalid("Message not found or invalid.")
+
+      # ✅ Process different message types (text, media, etc.)
+      if msg.text:
+          await app.send_message(sender, msg.text)
+      elif msg.photo:
+          await app.send_photo(sender, msg.photo.file_id, caption=msg.caption)
+      elif msg.document:
+          await app.send_document(sender, msg.document.file_id, caption=msg.caption)
+      elif msg.video:
+          await app.send_video(sender, msg.video.file_id, caption=msg.caption)
+      elif msg.audio:
+          await app.send_audio(sender, msg.audio.file_id, caption=msg.caption)
+      else:
+          await app.send_message(sender, "Unsupported message type.")
 
     except (ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid, PeerIdInvalid) as e:
-        print(f"Channel error detected: {e}")  # Debugging log
+      print(f"🔴 Channel error detected: {e}")  # Debugging log
     
-        if isinstance(e, ChannelBanned):
-            await app.edit_message_text(sender, edit_id, "The bot is banned in this channel.")
-        elif isinstance(e, ChannelPrivate):
-            await app.edit_message_text(sender, edit_id, "This channel is private. Please add the bot.")
-        elif isinstance(e, (ChannelInvalid, ChatInvalid, PeerIdInvalid)):
-            await app.edit_message_text(sender, edit_id, "Invalid channel/chat ID. Please verify.")
-        else:
-            await app.edit_message_text(sender, edit_id, f"Error: {str(e)}. Have you joined the channel?")
-        return  # Ensure function exits properly after handling errors
+      if isinstance(e, ChannelBanned):
+          await app.send_message(sender, "🚫 The bot is banned in this channel.")
+      elif isinstance(e, ChannelPrivate):
+          await app.send_message(sender, "🔒 This channel is private. Please add the bot.")
+      elif isinstance(e, (ChannelInvalid, ChatInvalid, PeerIdInvalid)):
+          await app.send_message(sender, "⚠️ Invalid channel/chat ID. Please verify.")
+      else:
+          await app.send_message(sender, f"❌ Error: {str(e)}. Have you joined the channel?")
+    
+      return  # ✅ Ensure function exits properly after handling errors
 
-    finally:
-        if file and os.path.exists(file):
-            os.remove(file)  # Cleanup code
+  finally:
+      # ✅ Cleanup: Remove downloaded files to save space
+      if file and os.path.exists(file):
+          os.remove(file)
+          print(f"🗑️ Deleted temporary file: {file}")
+
 
 
 
