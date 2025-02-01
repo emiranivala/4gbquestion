@@ -1,34 +1,3 @@
-
-                        reply=progress_message,
-                        name=None,
-                        progress_bar_function=lambda done, total: progress_callback(done, total, sender)
-                    )
-                    await gf.send_file(
-                        target_chat_id,
-                        uploaded,
-                        caption=part_caption,
-                        thumb=thumbnail(sender)
-                    )
-                    await gf.send_file(
-                        LOG_GROUP,
-                        uploaded,
-                        caption=part_caption,
-                        thumb=thumbnail(sender)
-                    )
-                    await progress_message.delete()
-                os.remove(part)
-            os.remove(file)
-            await edit.delete()
-            return
-        # -------------------------------------------------------------------------
-
-        # For videos, we want to rename/apply watermarking. For others (documents, photos, etc.) we preserve the original.
-        if msg.video:
-            progress_bar_function=lambda done, total: progress_callback(done, total, sender)
-                        )
-                        await gf.send_file(
-                            target_chat_id,
-
 import asyncio
 import time
 import os
