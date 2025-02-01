@@ -23,6 +23,7 @@ from devgagan.core.mongo.db import set_session, remove_session, get_data
 from devgagan.modules.shrink import is_user_verified
 from config import MONGO_DB as MONGODB_CONNECTION_STRING, LOG_GROUP, OWNER_ID, STRING
 from SpyLib import fast_upload
+
 # ------------------------- Mongo Setup -------------------------
 DB_NAME = "smart_users"
 COLLECTION_NAME = "super_user"
@@ -35,6 +36,7 @@ if STRING:
 else:
     pro = None
     print("STRING is not available. 'app' is set to None.")
+
 # ------------------------- Helper Functions -------------------------
 def thumbnail(sender):
     return f'{sender}.jpg' if os.path.exists(f'{sender}.jpg') else None
@@ -43,6 +45,27 @@ async def fetch_upload_method(user_id):
     """Fetch the user's preferred upload method."""
     user_data = collection.find_one({"user_id": user_id})
     return user_data.get("upload_method", "Pyrogram") if user_data else "Pyrogram"
+
+# --- File Splitting Function (Creates parts in the same folder as the original file) ---
+def split_file(file_path, chunk_size):
+    """
+    Splits the file at file_path into chunks of up to chunk_size bytes.
+    Returns a list of the generated part filenames.
+    """
+    parts = []
+    part_num = 1
+    with open(file_path, 'rb') as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            part_filename = f"{file_path}.part{part_num}"
+            with open(part_filename, 'wb') as pf:
+                pf.write(chunk)
+            parts.append(part_filename)
+            part_num += 1
+    return parts
+
 # ------------------------- Main Function -------------------------
 async def get_msg(userbot, sender, edit_id, msg_link, i, message):
     edit = ""
@@ -68,7 +91,7 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                 return
 
         file = ""
-        size_limit = 2 * 1024 * 1024 * 1024  # 2GB limit
+        size_limit = 2 * 1024 * 1024 * 1024  # 2GB limit in bytes
         chatx = message.chat.id
 
         # Get the message using the provided userbot
@@ -149,9 +172,53 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                                             progress=progress_bar,
                                             progress_args=("Downloading...", edit, time.time()))
         
+        # ------------- File Splitting Feature: No extra folder is used -------------
+        if os.path.getsize(file) > size_limit:
+            parts = split_file(file, size_limit)
+            target_chat_id = user_chat_ids.get(chatx, chatx)
+            upload_method = await fetch_upload_method(sender)
+            for idx, part in enumerate(parts, start=1):
+                part_caption = f"{caption}\n\nPart {idx}"
+                if upload_method == "Pyrogram":
+                    devgaganin = await app.send_document(
+                        chat_id=target_chat_id,
+                        document=part,
+                        caption=part_caption,
+                        thumb=thumbnail(sender),
+                        progress=progress_bar,
+                        progress_args=("Uploading part...", edit, time.time())
+                    )
+                    await devgaganin.copy(LOG_GROUP)
+                elif upload_method == "Telethon":
+                    await edit.delete()
+                    progress_message = await gf.send_message(sender, f"Uploading Part {idx} ...")
+                    uploaded = await fast_upload(
+                        gf, part,
+                        reply=progress_message,
+                        name=None,
+                        progress_bar_function=lambda done, total: progress_callback(done, total, sender)
+                    )
+                    await gf.send_file(
+                        target_chat_id,
+                        uploaded,
+                        caption=part_caption,
+                        thumb=thumbnail(sender)
+                    )
+                    await gf.send_file(
+                        LOG_GROUP,
+                        uploaded,
+                        caption=part_caption,
+                        thumb=thumbnail(sender)
+                    )
+                    await progress_message.delete()
+                os.remove(part)
+            os.remove(file)
+            await edit.delete()
+            return
+        # -------------------------------------------------------------------------
+
         # For videos, we want to rename/apply watermarking. For others (documents, photos, etc.) we preserve the original.
         if msg.video:
-            # Rename the video and apply watermark if needed.
             last_dot_index = str(file).rfind('.')
             if last_dot_index != -1:
                 original_file_name = str(file)[:last_dot_index]
@@ -173,17 +240,13 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
             duration = metadata['duration']
             thumb_path = await screenshot(file, duration, chatx)
         else:
-            # For non-video files, you can optionally set a thumbnail if available.
             thumb_path = thumbnail(sender)
 
-        # Determine the target chat ID and upload method
         target_chat_id = user_chat_ids.get(chatx, chatx)
         upload_method = await fetch_upload_method(sender)
 
         # ---------------------- Upload Based on Original Media Type ----------------------
-        # Case 1: Video message (sent as a video)
         if msg.video:
-            # If the video file size is huge and requires the "pro" client:
             if os.path.getsize(file) >= (2 * 1024 * 1024 * 1024):
                 if pro is None:
                     await edit.edit('**__ ❌ 4GB trigger not found__**')
@@ -274,7 +337,6 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                     )
                     await progress_message.delete()
 
-        # Case 2: Photo
         elif msg.photo:
             await edit.edit("Uploading photo...")
             devgaganin = await app.send_photo(
@@ -289,19 +351,15 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                     await devgaganin.pin()
             await devgaganin.copy(LOG_GROUP)
 
-        # Case 3: Voice
         elif msg.voice:
             result = await app.send_voice(target_chat_id, file)
             await result.copy(LOG_GROUP)
 
-        # Case 4: Audio
         elif msg.audio:
             result = await app.send_audio(target_chat_id, file, caption=caption)
             await result.copy(LOG_GROUP)
 
-        # Case 5: Document (generic file)
         elif msg.document:
-            # Even if the extension matches a video type, we treat it as a document.
             if upload_method == "Pyrogram":
                 devgaganin = await app.send_document(
                     chat_id=target_chat_id,
@@ -334,8 +392,6 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
                     thumb=thumb_path
                 )
                 await progress_message.delete()
-
-        # Fallback: if none of the above media types match, send as a document.
         else:
             if upload_method == "Pyrogram":
                 devgaganin = await app.send_document(
@@ -375,12 +431,12 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
             await progress_message.delete()
 
     except (ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid):
-            await app.edit_message_text(sender, edit_id, "Have you joined the channel?")
-            return
+        await app.edit_message_text(sender, edit_id, "Have you joined the channel?")
+        return
     except Exception as e:
-            print(f"Errrrror {e}")
-            await edit.delete()
-            # await app.edit_message_text(sender, edit_id, f'Failed to save: `{msg_link}`\n\nError: {str(e)}')       
+        print(f"Errrrror {e}")
+        await edit.delete()
+        # await app.edit_message_text(sender, edit_id, f'Failed to save: `{msg_link}`\n\nError: {str(e)}')       
         
     else:
         edit = await app.edit_message_text(sender, edit_id, "Cloning...")
@@ -390,15 +446,13 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
             await edit.delete()
         except Exception as e:
             await app.edit_message_text(sender, edit_id, f'Failed to save: `{msg_link}`\n\nError: {str(e)}')
+
 async def copy_message_with_chat_id(client, sender, chat_id, message_id):
     # Get the user's set chat ID, if available; otherwise, use the original sender ID
     target_chat_id = user_chat_ids.get(sender, sender)
     
     try:
-        # Fetch the message using get_message
         msg = await client.get_messages(chat_id, message_id)
-        
-        # Modify the caption based on user's custom caption preference
         custom_caption = get_user_caption_preference(sender)
         original_caption = msg.caption if msg.caption else ''
         final_caption = f"{original_caption}" if custom_caption else f"{original_caption}"
@@ -421,13 +475,10 @@ async def copy_message_with_chat_id(client, sender, chat_id, message_id):
             elif msg.media == MessageMediaType.PHOTO:
                 result = await client.send_photo(target_chat_id, msg.photo.file_id, caption=caption)
             else:
-                # Use copy_message for any other media types
                 result = await client.copy_message(target_chat_id, chat_id, message_id)
         else:
-            # Use copy_message if there is no media
             result = await client.copy_message(target_chat_id, chat_id, message_id)
 
-        # Attempt to copy the result to the LOG_GROUP
         try:
             await result.copy(LOG_GROUP)
         except Exception:
@@ -443,6 +494,7 @@ async def copy_message_with_chat_id(client, sender, chat_id, message_id):
         error_message = f"Error occurred while sending message to chat ID {target_chat_id}: {str(e)}"
         await client.send_message(sender, error_message)
         await client.send_message(sender, f"Make Bot admin in your Channel - {target_chat_id} and restart the process after /cancel")
+
 
 
 # -------------- FFMPEG CODES ---------------
